@@ -1,0 +1,5 @@
+/home/skrudje/Документы/Курсач/NetScanner/build/CMakeFiles/NetScanner.dir
+/home/skrudje/Документы/Курсач/NetScanner/build/CMakeFiles/edit_cache.dir
+/home/skrudje/Документы/Курсач/NetScanner/build/CMakeFiles/rebuild_cache.dir
+/home/skrudje/Документы/Курсач/NetScanner/build/CMakeFiles/NetScanner_autogen_timestamp_deps.dir
+/home/skrudje/Документы/Курсач/NetScanner/build/CMakeFiles/NetScanner_autogen.dir
