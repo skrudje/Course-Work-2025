@@ -1076,8 +1076,10 @@
  mdp:/usr/include/x86_64-linux-gnu/gnu/stubs.h
  mdp:/usr/include/x86_64-linux-gnu/qt5/QtCore/QDateTime
  mdp:/usr/include/x86_64-linux-gnu/qt5/QtCore/QDebug
+ mdp:/usr/include/x86_64-linux-gnu/qt5/QtCore/QFile
  mdp:/usr/include/x86_64-linux-gnu/qt5/QtCore/QObject
  mdp:/usr/include/x86_64-linux-gnu/qt5/QtCore/QString
+ mdp:/usr/include/x86_64-linux-gnu/qt5/QtCore/QTextStream
  mdp:/usr/include/x86_64-linux-gnu/qt5/QtCore/QThread
  mdp:/usr/include/x86_64-linux-gnu/qt5/QtCore/qabstractitemmodel.h
  mdp:/usr/include/x86_64-linux-gnu/qt5/QtCore/qalgorithms.h

@@ -1,25 +1,69 @@
 #include "dbmanager.h"
+#include "db_schema.h"
 #include <QDebug>
 #include <QSqlError>
 #include <QSqlQuery>
+#include <QCoreApplication>
 
 DbManager::DbManager() {
-    // Конструктор пустой, инициализация драйвера в connectToDb
+}
+
+DbConfig DbManager::loadConfig() {
+    DbConfig config;
+    
+    // значения по умолчанию
+    config.host = "127.0.0.1";
+    config.name = "network_scan";
+    config.user = "postgres";
+    config.password = "";
+    config.port = 5432;
+
+    // поиск файла .env рядом с исполняемым
+    QString configPath = QCoreApplication::applicationDirPath() + "/.env";
+    QFile file(configPath);
+
+    if (file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        QTextStream in(&file);
+        while (!in.atEnd()) {
+            QString line = in.readLine();
+            if (line.startsWith("#") || line.isEmpty()) continue;
+
+            QStringList parts = line.split("=");
+            if (parts.size() >= 2) {
+                QString key = parts[0].trimmed();
+                QString value = parts[1].trimmed();
+
+                if (key == "DB_HOST") config.host = value;
+                else if (key == "DB_NAME") config.name = value;
+                else if (key == "DB_USER") config.user = value;
+                else if (key == "DB_PASSWORD") config.password = value;
+                else if (key == "DB_PORT") config.port = value.toInt();
+            }
+        }
+        file.close();
+        qDebug() << "Конфигурация загружена из:" << configPath;
+    } else {
+        qDebug() << "ПРЕДУПРЕЖДЕНИЕ: Файл .env не найден! Используются настройки по умолчанию.";
+    }
+
+    return config;
 }
 
 bool DbManager::connectToDb() {
-    // Проверка, чтобы не создавать подключение дважды
     if (QSqlDatabase::contains("qt_sql_default_connection")) {
         db = QSqlDatabase::database("qt_sql_default_connection");
     } else {
         db = QSqlDatabase::addDatabase("QPSQL");
     }
     
-    db.setHostName("127.0.0.1");             
-    db.setDatabaseName("network_scan");      
-    db.setUserName("user");                  
-    db.setPassword("password");              
-    db.setPort(5432);
+    // загрузка конфига
+    DbConfig config = loadConfig();
+
+    db.setHostName(config.host);             
+    db.setDatabaseName(config.name);      
+    db.setUserName(config.user);                  
+    db.setPassword(config.password);              
+    db.setPort(config.port);
 
     if (!db.open()) {
         qDebug() << "Ошибка подключения к БД:" << db.lastError().text();
@@ -30,19 +74,22 @@ bool DbManager::connectToDb() {
 
 bool DbManager::initTables() {
     QSqlQuery query;
-    // создаем таблицу 
-    // важно что если ip TEXT PRIMARY KEY означает, что IP должен быть уникальным
-    // если мы найдем этот IP снова, мы просто обновим данные, а не создадим дубликат
-    QString createTable = "CREATE TABLE IF NOT EXISTS hosts ("
-                          "ip TEXT PRIMARY KEY, "
-                          "mac TEXT, "
-                          "type TEXT, "
-                          "scan_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP"
-                          ")";
     
-    if (!query.exec(createTable)) {
-        qDebug() << "Ошибка создания таблицы:" << query.lastError().text();
-        return false;
+    QStringList scripts = {
+        SQL_CREATE_TABLES,   
+        SQL_FUNC_ADD_HOST,   
+        SQL_FUNC_GET_HOSTS,  
+        SQL_FUNC_CLEAR,
+        
+        SQL_CREATE_VENDORS,  
+        SQL_SEED_VENDORS,    
+        SQL_FUNC_GET_VENDOR  
+    };
+
+    for (const QString& sql : scripts) {
+        if (!query.exec(sql)) {
+            qDebug() << "Init DB Error:" << query.lastError().text();
+        }
     }
     return true;
 }
@@ -50,20 +97,14 @@ bool DbManager::initTables() {
 bool DbManager::addHost(const QString& ip, const QString& mac, const QString& type) {
     QSqlQuery query;
     
-    // upsert запрос: вставить, а если конфликт по IP (такой уже есть) — обновить поля
-    query.prepare("INSERT INTO hosts (ip, mac, type, scan_date) "
-                  "VALUES (:ip, :mac, :type, CURRENT_TIMESTAMP) "
-                  "ON CONFLICT (ip) DO UPDATE SET "
-                  "mac = EXCLUDED.mac, "
-                  "type = EXCLUDED.type, "
-                  "scan_date = CURRENT_TIMESTAMP");
-                  
+    query.prepare("SELECT sp_add_host(:ip, :mac, :type)");
+    
     query.bindValue(":ip", ip);
     query.bindValue(":mac", mac);
     query.bindValue(":type", type);
 
     if (!query.exec()) {
-        qDebug() << "Ошибка записи в БД (" << ip << "):" << query.lastError().text();
+        qDebug() << "Add Host Error:" << query.lastError().text();
         return false;
     }
     return true;
@@ -71,14 +112,15 @@ bool DbManager::addHost(const QString& ip, const QString& mac, const QString& ty
 
 QList<QStringList> DbManager::getAllHosts() {
     QList<QStringList> list;
-    QSqlQuery query("SELECT ip, mac, type FROM hosts ORDER BY scan_date DESC");
+    
+    QSqlQuery query("SELECT * FROM sp_get_all_hosts()");
     
     while (query.next()) {
         QStringList host;
-        host << query.value(0).toString(); // IP
-        host << query.value(1).toString(); // MAC
-        host << "History";                 // Статус (так как это из истории)
-        host << query.value(2).toString(); // Type
+        host << query.value(0).toString(); // ip
+        host << query.value(1).toString(); // mac
+        host << "History";                 // status
+        host << query.value(2).toString(); // type
         list.append(host);
     }
     return list;
@@ -86,10 +128,21 @@ QList<QStringList> DbManager::getAllHosts() {
 
 bool DbManager::clearHosts() {
     QSqlQuery query;
-    if(query.exec("TRUNCATE TABLE hosts")) {
+    if(query.exec("SELECT sp_clear_hosts()")) {
         return true;
     } else {
-        qDebug() << "Ошибка очистки:" << query.lastError().text();
+        qDebug() << "Clear Error:" << query.lastError().text();
         return false;
     }
+}
+
+QString DbManager::getVendorByMac(QString mac) {
+    QSqlQuery query;
+    query.prepare("SELECT sp_get_vendor(:mac)");
+    query.bindValue(":mac", mac);
+    
+    if (query.exec() && query.next()) {
+        return query.value(0).toString();
+    }
+    return "Unknown";
 }

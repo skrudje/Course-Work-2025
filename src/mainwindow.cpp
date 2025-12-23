@@ -168,6 +168,16 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
     connect(scanner, &Scanner::hostFound, this, [=](QString ip, QString mac, QString status, QString type){
         int row = resultTable->rowCount();
         resultTable->insertRow(row);
+
+        QString vendor = dbManager.getVendorByMac(mac);
+
+        if (type == "Unknown Device" || type.isEmpty()) {
+            if (vendor != "Unknown") {
+                if (vendor == "Apple") type = "Apple Device";
+                else if (vendor == "Keenetic" || vendor == "TP-Link") type = "Router";
+                else type = vendor + " Device";
+            }
+        }
         
         resultTable->setItem(row, 0, new QTableWidgetItem(ip));
         resultTable->setItem(row, 1, new QTableWidgetItem(mac));
@@ -192,7 +202,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
     connect(scanner, &Scanner::scanFinished, this, [=](){
         statusLabel->setText("Готово.");
         progressBar->setValue(254); 
-        scanButton->setText("Анализ трафика...");
+        scanButton->setText("Анализ трафика");
         scanButton->setStyleSheet(StyleHelper::getStartButtonStyle()); 
         scanButton->setEnabled(true);
         addLog("--- Сканирование завершено ---");
@@ -278,22 +288,18 @@ void MainWindow::applyThemeColors() {
 void MainWindow::setupMenu() {
     QMenuBar* menu = menuBar();
     
-    // 1. меню Файл
     QMenu* fileMenu = menu->addMenu("Файл");
     connect(fileMenu->addAction("Экспорт в CSV"), &QAction::triggered, this, &MainWindow::onExportClicked);
     connect(fileMenu->addAction("Очистить базу"), &QAction::triggered, this, &MainWindow::onClearClicked);
     fileMenu->addSeparator();
     connect(fileMenu->addAction("Выход"), &QAction::triggered, this, &QMainWindow::close);
     
-    // 2. меню Вид
     QMenu* viewMenu = menu->addMenu("Вид");
     connect(viewMenu->addAction("🌗 Сменить тему"), &QAction::triggered, this, &MainWindow::toggleTheme);
     
-    // 3. меню справка
     QMenu* helpMenu = menu->addMenu("Помощь");
     connect(helpMenu->addAction("Руководство пользователя"), &QAction::triggered, this, &MainWindow::showContacts);
     
-    // 4. о программе
     menu->addAction("О программе", this, &MainWindow::showAbout);
 }
 
@@ -311,7 +317,7 @@ void MainWindow::toggleTheme() {
 void MainWindow::showContacts() {
     QMessageBox::information(this, "Руководство пользователя",
         "<h3> Быстрый старт</h3>"
-        "<p><b>1. Сканирование:</b> Введите базовый IP сети (например, <i>192.168.0.</i> или <i>192.168.0.1</i>) и нажмите кнопку <b>ЗАПУСК</b>.</p>"
+        "<p><b>1. Сканирование:</b> Введите базовый IP сети (например, <i>192.168.0.</i> или <i>192.168.0.1</i>) и нажмите кнопку <b>АНАЛИЗ</b>.</p>"
         "<p><b>2. Список узлов:</b> Найденные устройства отобразятся в таблице.</p>"
         "<ul>"
         "<li><span style='color:green;'><b>Зеленый статус</b></span>: Устройство активно прямо сейчас.</li>"
@@ -326,7 +332,7 @@ void MainWindow::showContacts() {
 
 void MainWindow::showAbout() {
     QMessageBox::about(this, "О программе NetScan",
-        "<h2 style='color:#2980b9;'>NetScan Pro v1.0</h2>"
+        "<h2 style='color:#2980b9;'>NetScan v1.0</h2>"
         "<p><b>Сетевой сканер и анализатор топологии локальной сети.</b></p>"
         "<p>Программа предназначена для обнаружения активных хостов, определения их типов (OS Fingerprinting) и визуализации структуры сети.</p>"
         "<hr>"
