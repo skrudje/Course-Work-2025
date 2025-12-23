@@ -90,18 +90,18 @@ sudo ./NetScanner
 
 * src/ — Исходный код приложения:
 
-* main.cpp — Точка входа, инициализация темы оформления.
+*    main.cpp — Точка входа, инициализация темы оформления.
 
-* scanner.cpp — Сетевое сканирование (ICMP, ARP, анализ портов).
+*    scanner.cpp — Сетевое сканирование (ICMP, ARP, анализ портов).
 
-* dbmanager.cpp — Взаимодействие с PostgreSQL (через QSqlDatabase).
+*    dbmanager.cpp — Взаимодействие с PostgreSQL (через QSqlDatabase).
 
-* mainwindow.cpp — Основное окно, таблица результатов и обработка событий.
+*    mainwindow.cpp — Основное окно, таблица результатов и обработка событий.
 
-* topologywidget.cpp — Визуализация графа сети (QGraphicsScene).
+*    topologywidget.cpp — Визуализация графа сети (QGraphicsScene).
 
 * include/ — Заголовочные файлы:
 
-* db_schema.h — SQL-скрипты и хранимые функции (Stored Functions).
+*    db_schema.h — SQL-скрипты и хранимые функции (Stored Functions).
 
 * images/ — Ресурсы (иконки для карты топологии).
